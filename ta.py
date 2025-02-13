@@ -1,59 +1,57 @@
 import streamlit as st
 
-# Definición de la UIT para 2025
-UIT = 5350  # Unidad Impositiva Tributaria 2025
-
-def calcular_impuesto(renta_neta):
-    """
-    Calcula el impuesto a la renta aplicando las tasas progresivas según los tramos establecidos.
-    """
-    if renta_neta <= 5 * UIT:
-        impuesto = renta_neta * 0.08
-    elif renta_neta <= 20 * UIT:
-        impuesto = (5 * UIT * 0.08) + ((renta_neta - 5 * UIT) * 0.14)
-    elif renta_neta <= 35 * UIT:
-        impuesto = (5 * UIT * 0.08) + (15 * UIT * 0.14) + ((renta_neta - 20 * UIT) * 0.17)
-    elif renta_neta <= 45 * UIT:
-        impuesto = (5 * UIT * 0.08) + (15 * UIT * 0.14) + (15 * UIT * 0.17) + ((renta_neta - 35 * UIT) * 0.20)
-    else:
-        impuesto = (5 * UIT * 0.08) + (15 * UIT * 0.14) + (15 * UIT * 0.17) + (10 * UIT * 0.20) + ((renta_neta - 45 * UIT) * 0.30)
-    return impuesto
-
-def calcular_impuesto_total(ingreso_anual):
-    """
-    Calcula el impuesto total considerando la deducción de 7 UIT y aplicando las tasas progresivas.
-    """
-    deduccion = 7 * UIT  # Deducción fija de 7 UIT
-    renta_neta = max(0, ingreso_anual - deduccion)
-    impuesto = calcular_impuesto(renta_neta)
-    return impuesto
-
 # Título de la aplicación
-st.title("Calculadora de Impuestos - Perú 2025")
+st.title("🧮 Cálculo del Impuesto a la Renta (4ta y 5ta Categoría) - Perú")
 
-# Sección de ingresos de cuarta categoría
-st.header("Ingresos de Cuarta Categoría")
-st.write("Ingrese su ingreso anual proveniente de trabajos independientes (honorarios profesionales, consultorías, etc.).")
-ingreso_cuarta = st.number_input("Ingreso anual de cuarta categoría (S/):", min_value=0.0, step=100.0)
+# Entrada de valor de la UIT (editable)
+st.sidebar.header("⚙️ Configuración")
+UIT = st.sidebar.number_input("Valor de la UIT (S/.)", min_value=5000, max_value=6000, value=5350, step=50)
 
-# Sección de ingresos de quinta categoría
-st.header("Ingresos de Quinta Categoría")
-st.write("Ingrese su ingreso anual proveniente de trabajos dependientes (planilla, sueldos, salarios, etc.).")
-ingreso_quinta = st.number_input("Ingreso anual de quinta categoría (S/):", min_value=0.0, step=100.0)
+# Entrada de ingresos
+st.header("📌 Ingresos")
+ingreso_4ta = st.number_input("Ingresos por 4ta Categoría (S/.)", min_value=0.0, value=0.0, step=100.0)
+ingreso_5ta = st.number_input("Ingresos por 5ta Categoría (S/.)", min_value=0.0, value=0.0, step=100.0)
 
-# Botón para calcular impuestos
-if st.button("Calcular Impuestos"):
-    # Cálculo de impuestos para cada categoría
-    impuesto_cuarta = calcular_impuesto_total(ingreso_cuarta)
-    impuesto_quinta = calcular_impuesto_total(ingreso_quinta)
-    total_impuesto = impuesto_cuarta + impuesto_quinta
+# Aplicar descuento del 20% a la renta de 4ta categoría
+descuento_4ta = ingreso_4ta * 0.20
+ingreso_4ta_neto = ingreso_4ta - descuento_4ta
 
-    # Mostrar resultados
-    st.subheader("Resultados")
-    st.write(f"**Impuesto a pagar por cuarta categoría:** S/ {impuesto_cuarta:,.2f}")
-    st.write(f"**Impuesto a pagar por quinta categoría:** S/ {impuesto_quinta:,.2f}")
-    st.write(f"**Total de impuesto a pagar:** S/ {total_impuesto:,.2f}")
+# Suma de ingresos anuales
+ingreso_total = ingreso_4ta_neto + ingreso_5ta
 
-# Pie de página con créditos
-st.write("---")
+# Deducciones
+st.header("📉 Deducciones")
+deduccion_7uit = min(7 * UIT, ingreso_total)  # Solo se descuenta hasta el total de ingresos
+base_imponible = max(0, ingreso_total - deduccion_7uit)
+
+# Función para calcular el impuesto según las escalas
+def calcular_impuesto(base):
+    tramos = [5 * UIT, 20 * UIT, 35 * UIT, 45 * UIT]  # Límites de cada tramo
+    tasas = [0.08, 0.14, 0.17, 0.20, 0.30]  # Tasas de impuestos
+
+    impuesto = 0
+    for i, tramo in enumerate(tramos):
+        if base > tramo:
+            impuesto += tramo * tasas[i]
+            base -= tramo
+        else:
+            impuesto += base * tasas[i]
+            return impuesto
+    impuesto += base * tasas[-1]  # Último tramo (30%)
+    return impuesto
+
+# Cálculo del impuesto
+impuesto_anual = calcular_impuesto(base_imponible)
+
+# Mostrar resultados
+st.header("📊 Resultados")
+st.write(f"🔹 **Ingresos 4ta Categoría Neto:** S/. {ingreso_4ta_neto:,.2f}")
+st.write(f"🔹 **Ingresos Totales:** S/. {ingreso_total:,.2f}")
+st.write(f"🔹 **Deducción 7 UIT:** S/. {deduccion_7uit:,.2f}")
+st.write(f"🔹 **Base Imponible:** S/. {base_imponible:,.2f}")
+st.write(f"🟢 **Impuesto a la renta Anual a Pagar:** S/. {impuesto_anual:,.2f}")
+
+# Visualización de impuestos en una barra de progreso
+st.progress(min(1, impuesto_anual / ingreso_total) if ingreso_total > 0 else 0)
+
 st.write("**Creado por los alumnos:** Angie Cordova Angulo, Arvic Jara Herrera y Junior Saavedra Dominguez")
